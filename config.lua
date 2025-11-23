@@ -1,6 +1,6 @@
 Config = {
     {
-        price = 150,
+        price = 30,
         text = "Change clothes",
         blip = {
             label = "Clothing store",
@@ -86,7 +86,7 @@ Config = {
         }
     },
     {
-        price = 300,
+        price = 100,
         text = "Get a tattoo",
         blip = {
             label = "Tattoo parlour",
@@ -131,7 +131,7 @@ Config = {
         }
     },
     {
-        price = 30,
+        price = 15,
         text = "Get a haircut",
         blip = {
             label = "Barber shop",

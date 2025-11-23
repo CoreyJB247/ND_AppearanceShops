@@ -1,8 +1,27 @@
 local wardrobeId = "ND_AppearanceShops:wardrobe"
 local wardrobeSelectedId = ("%s_selected"):format(wardrobeId)
-local wardrobe = json.decode(GetResourceKvpString(wardrobeId)) or {}
+local wardrobe = {} -- Now loaded from database per character
 local currentOpenWardrobe
 local fivemAppearance = exports["fivem-appearance"]
+
+-- Load outfits from database for current character
+local function loadWardrobe()
+    lib.callback("ND_AppearanceShops:getOutfits", false, function(outfits)
+        wardrobe = outfits or {}
+    end)
+end
+
+-- Load wardrobe when character loads
+RegisterNetEvent("ND:characterLoaded", function(character)
+    Wait(1000) -- Wait for character to fully load
+    loadWardrobe()
+end)
+
+-- Initial load
+CreateThread(function()
+    Wait(2000)
+    loadWardrobe()
+end)
 
 local function inputOutfitName()
     local input = lib.inputDialog("Save current outfit", {"Outfit name:"})
@@ -20,12 +39,23 @@ local function saveWardrobe(name)
     appearance.tattoos = nil
     appearance.faceFeatures = nil
     appearance.headBlend = nil
-    wardrobe[#wardrobe+1] = {
-        name = name,
-        appearance = appearance
-    }
-    SetResourceKvp(wardrobeId, json.encode(wardrobe))
-    return true
+    
+    lib.callback("ND_AppearanceShops:saveOutfit", false, function(success)
+        if success then
+            lib.notify({
+                title = "Wardrobe",
+                description = "Outfit saved successfully!",
+                type = "success"
+            })
+            loadWardrobe() -- Reload to get alphabetically sorted list
+        else
+            lib.notify({
+                title = "Wardrobe",
+                description = "Failed to save outfit",
+                type = "error"
+            })
+        end
+    end, name, appearance)
 end
 
 local function getWardrobe()
@@ -38,6 +68,8 @@ local function getWardrobe()
             end
         }
     }
+    
+    -- Wardrobe is already sorted alphabetically from database
     for i=1, #wardrobe do
         local info = wardrobe[i]
         options[#options+1] = {
@@ -166,7 +198,24 @@ lib.registerContext({
                 if not selected then return end
                 local name = inputOutfitName()
                 if not name then return end
-                selected.name = name
+                
+                lib.callback("ND_AppearanceShops:renameOutfit", false, function(success)
+                    if success then
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Outfit renamed successfully!",
+                            type = "success"
+                        })
+                        loadWardrobe() -- Reload to maintain alphabetical order
+                        lib.hideContext()
+                    else
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Failed to rename outfit",
+                            type = "error"
+                        })
+                    end
+                end, selected.id, name)
             end
         },
         {
@@ -182,7 +231,24 @@ lib.registerContext({
                     cancel = true
                 })
                 if alert ~= "confirm" then return end
-                table.remove(wardrobe, currentOpenWardrobe)
+                
+                lib.callback("ND_AppearanceShops:deleteOutfit", false, function(success)
+                    if success then
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Outfit deleted successfully!",
+                            type = "success"
+                        })
+                        loadWardrobe()
+                        lib.hideContext()
+                    else
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Failed to delete outfit",
+                            type = "error"
+                        })
+                    end
+                end, selected.id)
             end
         }
     }
@@ -192,10 +258,55 @@ for i=1, #Config do
     createClothingStore(Config[i])
 end
 
-AddEventHandler("onResourceStop", function(resource)
-    if resource ~= cache.resource then return end
-    SetResourceKvp(wardrobeId, json.encode(wardrobe))
-end)
-
 exports("openWardrobe", openWardrobe)
 exports("createClothingStore", createClothingStore)
+
+-- Command to open the wardrobe
+RegisterCommand('wardrobe', function(source, args, rawCommand)
+    exports["ND_AppearanceShops"]:openWardrobe()
+end, false)
+
+-- Alternative: You can also bind it to a key
+RegisterKeyMapping('wardrobe', 'Open Wardrobe', 'keyboard', 'F7')
+
+-- Optional: Add a notification when opened
+RegisterCommand('openwardrobe', function(source, args, rawCommand)
+    exports["ND_AppearanceShops"]:openWardrobe()
+    
+    lib.notify({
+        title = "Wardrobe",
+        description = "Wardrobe opened!",
+        type = "info"
+    })
+end, false)
+
+-- Command to reload/refresh your current skin
+RegisterCommand('reloadskin', function(source, args, rawCommand)
+    local player = NDCore.getPlayer()
+    if not player then 
+        return lib.notify({
+            title = "Error",
+            description = "Character not loaded yet",
+            type = "error"
+        })
+    end
+    
+    -- Get clothing from character metadata
+    local clothing = player.metadata?.clothing
+    
+    if clothing then
+        -- Reapply the saved clothing
+        fivemAppearance:setPedAppearance(cache.ped, clothing)
+        lib.notify({
+            title = "Skin",
+            description = "Skin reloaded successfully!",
+            type = "success"
+        })
+    else
+        lib.notify({
+            title = "Skin",
+            description = "No saved skin found",
+            type = "error"
+        })
+    end
+end, false)

@@ -12,8 +12,11 @@
 ## Dependencies:
 * [ND Core](https://github.com/ND-Framework/ND_Core)
 * [fivem-appearance](https://github.com/pedr0fontoura/fivem-appearance/releases)
-* [ox library]([https://github.com/overextended/ox_lib/releases)
+* [ox library](https://github.com/overextended/ox_lib/releases)
 * [oxmysql](https://github.com/communityox/oxmysql/releases)
+
+## Note:
+RUN SQL FILE BEFORE TESTING
 
 ## Need support?
 [![Need Support?](https://user-images.githubusercontent.com/86536434/147299047-73691b78-2690-4786-b58b-27d24e48a0d2.png)](https://discord.gg/Z9Mxu72zZ6)

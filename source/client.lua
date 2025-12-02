@@ -131,40 +131,76 @@ local function createClothingStore(info)
     local storeNumber = getStoreNumber(info)
     for i=1, #info.locations do
         local location = info.locations[i]
-        local options = {
-            {
-                name = "nd_core:appearanceShops",
-                icon = "fa-solid fa-bag-shopping",
-                label = info.text,
-                distance = 2.0,
-                onSelect = function(data)
-                    startChange(location.change, info.appearance, storeNumber)
-                end
-            }
-        }
-        if info.appearance?.components then
-            options[#options+1] = {
-                name = "nd_core:appearanceOutfit",
-                icon = "fa-solid fa-shirt",
-                label = "View outfits",
-                distance = 2.0,
-                onSelect = function(data)
-                    openWardrobe()
-                end
-            }
-        end
-        NDCore.createAiPed({
-            resource = GetInvokingResource(),
-            model = location.model,
-            coords = location.worker,
-            distance = 25.0,
-            blip = info.blip,
-            options = options,
-            anim = {
-                dict = "anim@amb@casino@valet_scenario@pose_d@",
-                clip = "base_a_m_y_vinewood_01"
-            }
+        
+        -- Create interaction point at the change location instead of ped
+        local point = lib.points.new({
+            coords = location.change.xyz,
+            distance = 25.0
         })
+        
+        function point:nearby()
+            if self.currentDistance <= 2.0 then
+                if self.currentDistance <= 1.5 then
+                    lib.showTextUI(('[E] - %s'):format(info.blip?.label or info.text), {
+                        position = "left-center",
+                        icon = 'fa-solid fa-bag-shopping',
+                    })
+                    
+                    if IsControlJustReleased(0, 38) then -- E key
+                        lib.hideTextUI()
+                        
+                        -- Open combined menu
+                        local menuOptions = {
+                            {
+                                title = info.text,
+                                description = ("Cost: $%d"):format(info.price or 0),
+                                icon = "fa-solid fa-bag-shopping",
+                                onSelect = function()
+                                    startChange(location.change, info.appearance, storeNumber)
+                                end
+                            }
+                        }
+                        
+                        -- Add wardrobe option if this is a clothing store
+                        if info.appearance?.components then
+                            menuOptions[#menuOptions+1] = {
+                                title = "My Saved Outfits",
+                                description = "View and manage your saved outfits",
+                                icon = "fa-solid fa-shirt",
+                                arrow = true,
+                                onSelect = function()
+                                    openWardrobe("clothing_store_menu")
+                                end
+                            }
+                        end
+                        
+                        lib.registerContext({
+                            id = "clothing_store_menu",
+                            title = info.blip?.label or "Clothing Store",
+                            options = menuOptions
+                        })
+                        
+                        lib.showContext("clothing_store_menu")
+                    end
+                end
+            else
+                if lib.isTextUIOpen() then
+                    lib.hideTextUI()
+                end
+            end
+        end
+        
+        -- Create blip at the change location if configured
+        if info.blip then
+            local blip = AddBlipForCoord(location.change.x, location.change.y, location.change.z)
+            SetBlipSprite(blip, info.blip.sprite or 73)
+            SetBlipScale(blip, info.blip.scale or 0.65)
+            SetBlipColour(blip, info.blip.color or 3)
+            SetBlipAsShortRange(blip, true)
+            BeginTextCommandSetBlipName("STRING")
+            AddTextComponentString(info.blip.label or "Clothing Store")
+            EndTextCommandSetBlipName(blip)
+        end
     end
 end
 
@@ -261,25 +297,6 @@ end
 exports("openWardrobe", openWardrobe)
 exports("createClothingStore", createClothingStore)
 
--- Command to open the wardrobe
-RegisterCommand('wardrobe', function(source, args, rawCommand)
-    exports["ND_AppearanceShops"]:openWardrobe()
-end, false)
-
--- Alternative: You can also bind it to a key
-RegisterKeyMapping('wardrobe', 'Open Wardrobe', 'keyboard', 'F7')
-
--- Optional: Add a notification when opened
-RegisterCommand('openwardrobe', function(source, args, rawCommand)
-    exports["ND_AppearanceShops"]:openWardrobe()
-    
-    lib.notify({
-        title = "Wardrobe",
-        description = "Wardrobe opened!",
-        type = "info"
-    })
-end, false)
-
 -- Command to reload/refresh your current skin
 RegisterCommand('reloadskin', function(source, args, rawCommand)
     local player = NDCore.getPlayer()
@@ -309,4 +326,13 @@ RegisterCommand('reloadskin', function(source, args, rawCommand)
             type = "error"
         })
     end
+end, false)
+
+-- Alternative command names
+RegisterCommand('refreshskin', function(source, args, rawCommand)
+    ExecuteCommand('reloadskin')
+end, false)
+
+RegisterCommand('fixskin', function(source, args, rawCommand)
+    ExecuteCommand('reloadskin')
 end, false)

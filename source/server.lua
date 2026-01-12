@@ -114,3 +114,20 @@ lib.callback.register("ND_AppearanceShops:renameOutfit", function(src, outfitId,
     
     return success and success.affectedRows > 0
 end)
+
+-- Update outfit with new appearance (with character verification)
+lib.callback.register("ND_AppearanceShops:updateOutfit", function(src, outfitId, appearance)
+    local player = NDCore.getPlayer(src)
+    if not player then return false end
+    
+    local characterId = player.id
+    local appearanceJson = json.encode(appearance)
+    
+    local success = MySQL.query.await('UPDATE player_outfits SET appearance = ? WHERE id = ? AND character_id = ?', {
+        appearanceJson,
+        outfitId,
+        characterId
+    })
+    
+    return success and success.affectedRows > 0
+end)

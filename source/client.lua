@@ -255,6 +255,49 @@ lib.registerContext({
             end
         },
         {
+            title = "Update with Current",
+            description = "Replace this outfit with what you're currently wearing",
+            icon = "fa-solid fa-rotate",
+            onSelect = function()
+                local selected = wardrobe[currentOpenWardrobe]
+                if not selected then return end
+                
+                local alert = lib.alertDialog({
+                    header = "Update outfit?",
+                    content = ("Are you sure you want to update '%s' with your current outfit?"):format(selected.name),
+                    centered = true,
+                    cancel = true
+                })
+                
+                if alert ~= "confirm" then return end
+                
+                local appearance = fivemAppearance:getPedAppearance(cache.ped)
+                appearance.hair = nil
+                appearance.headOverlays = nil
+                appearance.tattoos = nil
+                appearance.faceFeatures = nil
+                appearance.headBlend = nil
+                
+                lib.callback("ND_AppearanceShops:updateOutfit", false, function(success)
+                    if success then
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Outfit updated successfully!",
+                            type = "success"
+                        })
+                        loadWardrobe()
+                        lib.hideContext()
+                    else
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Failed to update outfit",
+                            type = "error"
+                        })
+                    end
+                end, selected.id, appearance)
+            end
+        },
+        {
             title = "Remove",
             icon = "fa-solid fa-trash-can",
             onSelect = function()

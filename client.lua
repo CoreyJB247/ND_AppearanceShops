@@ -1,0 +1,381 @@
+local wardrobeId = "ND_AppearanceShops:wardrobe"
+local wardrobeSelectedId = ("%s_selected"):format(wardrobeId)
+local wardrobe = {} -- Now loaded from database per character
+local currentOpenWardrobe
+local fivemAppearance = exports["fivem-appearance"]
+
+-- Load outfits from database for current character
+local function loadWardrobe()
+    lib.callback("ND_AppearanceShops:getOutfits", false, function(outfits)
+        wardrobe = outfits or {}
+    end)
+end
+
+-- Load wardrobe when character loads
+RegisterNetEvent("ND:characterLoaded", function(character)
+    Wait(1000) -- Wait for character to fully load
+    loadWardrobe()
+end)
+
+-- Initial load
+CreateThread(function()
+    Wait(2000)
+    loadWardrobe()
+end)
+
+local function inputOutfitName()
+    local input = lib.inputDialog("Save current outfit", {"Outfit name:"})
+    local name = input?[1]
+    if name and name ~= "" then
+        return name
+    end
+end
+
+local function saveWardrobe(name)
+    if not name then return end
+    local appearance = fivemAppearance:getPedAppearance(cache.ped)
+    appearance.hair = nil
+    appearance.headOverlays = nil
+    appearance.tattoos = nil
+    appearance.faceFeatures = nil
+    appearance.headBlend = nil
+    
+    lib.callback("ND_AppearanceShops:saveOutfit", false, function(success)
+        if success then
+            lib.notify({
+                title = "Wardrobe",
+                description = "Outfit saved successfully!",
+                type = "success"
+            })
+            loadWardrobe() -- Reload to get alphabetically sorted list
+        else
+            lib.notify({
+                title = "Wardrobe",
+                description = "Failed to save outfit",
+                type = "error"
+            })
+        end
+    end, name, appearance)
+end
+
+local function getWardrobe()
+    local options = {
+        {
+            title = "Save current outfit",
+            icon = "fa-solid fa-floppy-disk",
+            onSelect = function()
+                saveWardrobe(inputOutfitName())
+            end
+        }
+    }
+    
+    -- Wardrobe is already sorted alphabetically from database
+    for i=1, #wardrobe do
+        local info = wardrobe[i]
+        options[#options+1] = {
+            title = info.name,
+            arrow = true,
+            onSelect = function()
+                currentOpenWardrobe = i
+                lib.showContext(wardrobeSelectedId)
+            end
+        }
+    end
+    return options
+end
+
+local function openWardrobe(menu)
+    lib.registerContext({
+        id = wardrobeId,
+        menu = menu,
+        title = "Outfits",
+        options = getWardrobe()
+    })
+    lib.showContext(wardrobeId)
+end
+
+local function startChange(coords, options, i)
+    local ped = cache.ped
+    local oldAppearance = fivemAppearance:getPedAppearance(ped)
+    SetEntityCoords(ped, coords.x, coords.y, coords.z-1.0)
+    SetEntityHeading(ped, coords.w)
+    Wait(250)
+    fivemAppearance:startPlayerCustomization(function(appearance)
+        if not appearance then return end
+
+        ped = PlayerPedId()
+        local clothing = fivemAppearance:getPedAppearance(ped)
+
+        if not lib.callback.await("ND_AppearanceShops:clothingPurchase", false, i, clothing) then
+            fivemAppearance:setPlayerModel(oldAppearance.model)
+            ped = PlayerPedId()
+            fivemAppearance:setPedTattoos(ped, oldAppearance.tattoos)
+            fivemAppearance:setPedAppearance(ped, oldAppearance.appearance)
+        end
+    end, options)
+end
+
+local function getStoreNumber(store)
+    for i=1, #Config do
+        if store == Config[i] then
+            return i
+        end
+    end
+
+    local number = #Config+1
+    Config[number] = store
+    return number
+end
+
+local function createClothingStore(info)
+    local storeNumber = getStoreNumber(info)
+    for i=1, #info.locations do
+        local location = info.locations[i]
+        
+        -- Create interaction point at the change location instead of ped
+        local point = lib.points.new({
+            coords = location.change.xyz,
+            distance = 25.0
+        })
+        
+        function point:nearby()
+            if self.currentDistance <= 2.0 then
+                if self.currentDistance <= 1.5 then
+                    lib.showTextUI(('[E] - %s'):format(info.blip?.label or info.text), {
+                        position = "left-center",
+                        icon = 'fa-solid fa-bag-shopping',
+                    })
+                    
+                    if IsControlJustReleased(0, 38) then -- E key
+                        lib.hideTextUI()
+                        
+                        -- Open combined menu
+                        local menuOptions = {
+                            {
+                                title = info.text,
+                                description = ("Cost: $%d"):format(info.price or 0),
+                                icon = "fa-solid fa-bag-shopping",
+                                onSelect = function()
+                                    startChange(location.change, info.appearance, storeNumber)
+                                end
+                            }
+                        }
+                        
+                        -- Add wardrobe option if this is a clothing store
+                        if info.appearance?.components then
+                            menuOptions[#menuOptions+1] = {
+                                title = "My Saved Outfits",
+                                description = "View and manage your saved outfits",
+                                icon = "fa-solid fa-shirt",
+                                arrow = true,
+                                onSelect = function()
+                                    openWardrobe("clothing_store_menu")
+                                end
+                            }
+                        end
+                        
+                        lib.registerContext({
+                            id = "clothing_store_menu",
+                            title = info.blip?.label or "Clothing Store",
+                            options = menuOptions
+                        })
+                        
+                        lib.showContext("clothing_store_menu")
+                    end
+                end
+            else
+                if lib.isTextUIOpen() then
+                    lib.hideTextUI()
+                end
+            end
+        end
+        
+        -- Create blip at the change location if configured
+        if info.blip then
+            local blip = AddBlipForCoord(location.change.x, location.change.y, location.change.z)
+            SetBlipSprite(blip, info.blip.sprite or 73)
+            SetBlipScale(blip, info.blip.scale or 0.65)
+            SetBlipColour(blip, info.blip.color or 3)
+            SetBlipAsShortRange(blip, true)
+            BeginTextCommandSetBlipName("STRING")
+            AddTextComponentString(info.blip.label or "Clothing Store")
+            EndTextCommandSetBlipName(blip)
+        end
+    end
+end
+
+lib.registerContext({
+    id = wardrobeSelectedId,
+    title = "Outfits",
+    menu = wardrobeId,
+    options = {
+        {
+            title = "Wear",
+            icon = "fa-solid fa-shirt",
+            onSelect = function()
+                local selected = wardrobe[currentOpenWardrobe]
+                if not selected then return end
+                if GetHashKey(selected.appearance.model) ~= GetEntityModel(cache.ped) then
+                    return lib.notify({
+                        title = "Incorrect player model",
+                        description = "This saved outfit is not for the current player model",
+                        type = "error"
+                    })
+                end
+                fivemAppearance:setPedAppearance(cache.ped, selected.appearance)
+                TriggerServerEvent("ND_AppearanceShops:updateAppearance", fivemAppearance:getPedAppearance(cache.ped))
+            end
+        },
+        {
+            title = "Edit name",
+            icon = "fa-solid fa-pen-to-square",
+            onSelect = function()
+                local selected = wardrobe[currentOpenWardrobe]
+                if not selected then return end
+                local name = inputOutfitName()
+                if not name then return end
+                
+                lib.callback("ND_AppearanceShops:renameOutfit", false, function(success)
+                    if success then
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Outfit renamed successfully!",
+                            type = "success"
+                        })
+                        loadWardrobe() -- Reload to maintain alphabetical order
+                        lib.hideContext()
+                    else
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Failed to rename outfit",
+                            type = "error"
+                        })
+                    end
+                end, selected.id, name)
+            end
+        },
+        {
+            title = "Update with Current",
+            description = "Replace this outfit with what you're currently wearing",
+            icon = "fa-solid fa-rotate",
+            onSelect = function()
+                local selected = wardrobe[currentOpenWardrobe]
+                if not selected then return end
+                
+                local alert = lib.alertDialog({
+                    header = "Update outfit?",
+                    content = ("Are you sure you want to update '%s' with your current outfit?"):format(selected.name),
+                    centered = true,
+                    cancel = true
+                })
+                
+                if alert ~= "confirm" then return end
+                
+                local appearance = fivemAppearance:getPedAppearance(cache.ped)
+                appearance.hair = nil
+                appearance.headOverlays = nil
+                appearance.tattoos = nil
+                appearance.faceFeatures = nil
+                appearance.headBlend = nil
+                
+                lib.callback("ND_AppearanceShops:updateOutfit", false, function(success)
+                    if success then
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Outfit updated successfully!",
+                            type = "success"
+                        })
+                        loadWardrobe()
+                        lib.hideContext()
+                    else
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Failed to update outfit",
+                            type = "error"
+                        })
+                    end
+                end, selected.id, appearance)
+            end
+        },
+        {
+            title = "Remove",
+            icon = "fa-solid fa-trash-can",
+            onSelect = function()
+                local selected = wardrobe[currentOpenWardrobe]
+                if not selected then return end
+                local alert = lib.alertDialog({
+                    header = "Remove outfit?",
+                    content = ("Are you sure you'd like to remove %s?"):format(selected.name),
+                    centered = true,
+                    cancel = true
+                })
+                if alert ~= "confirm" then return end
+                
+                lib.callback("ND_AppearanceShops:deleteOutfit", false, function(success)
+                    if success then
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Outfit deleted successfully!",
+                            type = "success"
+                        })
+                        loadWardrobe()
+                        lib.hideContext()
+                    else
+                        lib.notify({
+                            title = "Wardrobe",
+                            description = "Failed to delete outfit",
+                            type = "error"
+                        })
+                    end
+                end, selected.id)
+            end
+        }
+    }
+})
+
+for i=1, #Config do
+    createClothingStore(Config[i])
+end
+
+exports("openWardrobe", openWardrobe)
+exports("createClothingStore", createClothingStore)
+
+-- Command to reload/refresh your current skin
+RegisterCommand('reloadskin', function(source, args, rawCommand)
+    local player = NDCore.getPlayer()
+    if not player then 
+        return lib.notify({
+            title = "Error",
+            description = "Character not loaded yet",
+            type = "error"
+        })
+    end
+    
+    -- Get clothing from character metadata
+    local clothing = player.metadata?.clothing
+    
+    if clothing then
+        -- Reapply the saved clothing
+        fivemAppearance:setPedAppearance(cache.ped, clothing)
+        lib.notify({
+            title = "Skin",
+            description = "Skin reloaded successfully!",
+            type = "success"
+        })
+    else
+        lib.notify({
+            title = "Skin",
+            description = "No saved skin found",
+            type = "error"
+        })
+    end
+end, false)
+
+-- Alternative command names
+RegisterCommand('refreshskin', function(source, args, rawCommand)
+    ExecuteCommand('reloadskin')
+end, false)
+
+RegisterCommand('fixskin', function(source, args, rawCommand)
+    ExecuteCommand('reloadskin')
+end, false)

@@ -4,16 +4,18 @@ Config = {
         text = "Change clothes",
         blip = {
             label = "Police Locker",
-            sprite = 73,
+            sprite = 366,
             scale = 0.6,
-            color = 3
+            color = 38
         },
         appearance = {
             components = true,
             props = true,
         },
         locations = {
-            { change = vec4(1830.24, 3677.96, 34.72, 25.28) },
+            { change = vec4(455.56, -991.48, 30.68, 91.36) },
+            { change = vec4(1825.24, 3679.68, 34.4, 115.36) },
+            { change = vec4(-3151.92, 1135.68, 21.08, 151.68) },
         }
     },
     {
@@ -21,7 +23,7 @@ Config = {
         text = "Change clothes",
         blip = {
             label = "SAFR Locker",
-            sprite = 73,
+            sprite = 366,
             scale = 0.6,
             color = 1
         },
@@ -30,7 +32,7 @@ Config = {
             props = true,
         },
         locations = {
-            { change = vec4(2505.44, 4225.76, 40.4, 249.8) },
+            { change = vec4(300.64, -597.6, 43.28, 352.72) },
         }
     },
     {
@@ -38,9 +40,9 @@ Config = {
         text = "Change clothes",
         blip = {
             label = "Clothing store",
-            sprite = 366,
-            scale = 0.7,
-            color = 47
+            sprite = 73,
+            scale = 0.8,
+            color = 3
         },
         appearance = {
             components = true,
@@ -48,7 +50,6 @@ Config = {
         },
         locations = {
             { change = vec4(11.10, 6513.75, 31.88, 44.84) },
-            { change = vec4(1780.72, 3643.52, 34.88, 118.6) },
             { change = vec4(1696.50, 4828.62, 42.06, 96.94) },
             { change = vec4(-1107.79, 2709.55, 19.11, 224.57) },
             { change = vec4(617.47, 2765.67, 42.09, 184.34) },
@@ -70,7 +71,7 @@ Config = {
         blip = {
             label = "Tattoo parlour",
             sprite = 75,
-            scale = 0.7,
+            scale = 0.8,
             color = 0
         },
         appearance = {
@@ -91,7 +92,7 @@ Config = {
         blip = {
             label = "Barber shop",
             sprite = 71,
-            scale = 0.7,
+            scale = 0.8,
             color = 0
         },
         appearance = {

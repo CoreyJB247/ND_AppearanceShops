@@ -94,14 +94,17 @@ local function openWardrobe(menu)
     lib.showContext(wardrobeId)
 end
 
-local function startChange(coords, options, i)
+local function startChange(coords, options, i, onFinish)
     local ped = cache.ped
     local oldAppearance = fivemAppearance:getPedAppearance(ped)
     SetEntityCoords(ped, coords.x, coords.y, coords.z-1.0)
     SetEntityHeading(ped, coords.w)
     Wait(250)
     fivemAppearance:startPlayerCustomization(function(appearance)
-        if not appearance then return end
+        if not appearance then
+            if onFinish then onFinish() end
+            return
+        end
 
         ped = PlayerPedId()
         local clothing = fivemAppearance:getPedAppearance(ped)
@@ -112,6 +115,8 @@ local function startChange(coords, options, i)
             fivemAppearance:setPedTattoos(ped, oldAppearance.tattoos)
             fivemAppearance:setPedAppearance(ped, oldAppearance.appearance)
         end
+
+        if onFinish then onFinish() end
     end, options)
 end
 
@@ -224,6 +229,12 @@ lib.registerContext({
                 end
                 fivemAppearance:setPedAppearance(cache.ped, selected.appearance)
                 TriggerServerEvent("ND_AppearanceShops:updateAppearance", fivemAppearance:getPedAppearance(cache.ped))
+                lib.notify({
+                    title = "Wardrobe",
+                    description = ("Now wearing: %s"):format(selected.name),
+                    type = "success"
+                })
+                lib.showContext(wardrobeSelectedId)
             end
         },
         {
@@ -378,4 +389,66 @@ end, false)
 
 RegisterCommand('fixskin', function(source, args, rawCommand)
     ExecuteCommand('reloadskin')
+end, false)
+
+-- Command to open the clothing store menu in-place (no teleport)
+RegisterCommand('clothingmenu', function()
+    -- Find the first clothing store config (components = true)
+    local clothingStore = nil
+    local storeNumber = nil
+    for i = 1, #Config do
+        if Config[i].appearance and Config[i].appearance.components then
+            clothingStore = Config[i]
+            storeNumber = i
+            break
+        end
+    end
+
+    if not clothingStore then
+        return lib.notify({
+            title = "Clothing Store",
+            description = "No clothing store found in config",
+            type = "error"
+        })
+    end
+
+    -- Use player's current coords/heading so no teleport occurs
+    local ped = cache.ped
+    local coords = GetEntityCoords(ped)
+    local heading = GetEntityHeading(ped)
+    local fakeLocation = { change = vec4(coords.x, coords.y, coords.z, heading) }
+
+    local function openClothingMenu()
+        local menuOptions = {
+            {
+                title = clothingStore.text,
+                description = ("Cost: $%d"):format(clothingStore.price or 0),
+                icon = "fa-solid fa-bag-shopping",
+                onSelect = function()
+                    startChange(fakeLocation.change, clothingStore.appearance, storeNumber, function()
+                        openClothingMenu()
+                    end)
+                end
+            },
+            {
+                title = "My Saved Outfits",
+                description = "View and manage your saved outfits",
+                icon = "fa-solid fa-shirt",
+                arrow = true,
+                onSelect = function()
+                    openWardrobe("clothing_cmd_menu")
+                end
+            }
+        }
+
+        lib.registerContext({
+            id = "clothing_cmd_menu",
+            title = clothingStore.blip and clothingStore.blip.label or "Clothing Store",
+            options = menuOptions
+        })
+
+        lib.showContext("clothing_cmd_menu")
+    end
+
+    openClothingMenu()
 end, false)

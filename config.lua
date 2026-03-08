@@ -13,7 +13,7 @@ Config = {
             props = true,
         },
         locations = {
-            { change = vec4(455.56, -991.48, 30.68, 91.36) },
+            { change = vec4(458.4, -998.48, 30.68, 8.0) },
             { change = vec4(1825.24, 3679.68, 34.4, 115.36) },
             { change = vec4(-3151.92, 1135.68, 21.08, 151.68) },
         }
@@ -36,7 +36,7 @@ Config = {
         }
     },
     {
-        price = 30,
+        price = 1,
         text = "Change clothes",
         blip = {
             label = "Clothing store",

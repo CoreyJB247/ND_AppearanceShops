@@ -52,7 +52,7 @@ lib.callback.register("ND_AppearanceShops:saveOutfit", function(src, name, appea
     local characterId = player.id
     local appearanceJson = json.encode(appearance)
     
-    local success = MySQL.insert.await('INSERT INTO player_outfits (character_id, name, appearance) VALUES (?, ?, ?)', {
+    local success = MySQL.insert.await('INSERT INTO nd_characters_outfits (character_id, name, appearance) VALUES (?, ?, ?)', {
         characterId,
         name,
         appearanceJson
@@ -68,7 +68,7 @@ lib.callback.register("ND_AppearanceShops:getOutfits", function(src)
     
     local characterId = player.id
     
-    local result = MySQL.query.await('SELECT id, name, appearance FROM player_outfits WHERE character_id = ? ORDER BY name ASC', {
+    local result = MySQL.query.await('SELECT id, name, appearance FROM nd_characters_outfits WHERE character_id = ? ORDER BY name ASC', {
         characterId
     })
     
@@ -91,7 +91,7 @@ lib.callback.register("ND_AppearanceShops:deleteOutfit", function(src, outfitId)
     
     local characterId = player.id
     
-    local success = MySQL.query.await('DELETE FROM player_outfits WHERE id = ? AND character_id = ?', {
+    local success = MySQL.query.await('DELETE FROM nd_characters_outfits WHERE id = ? AND character_id = ?', {
         outfitId,
         characterId
     })
@@ -106,7 +106,7 @@ lib.callback.register("ND_AppearanceShops:renameOutfit", function(src, outfitId,
     
     local characterId = player.id
     
-    local success = MySQL.query.await('UPDATE player_outfits SET name = ? WHERE id = ? AND character_id = ?', {
+    local success = MySQL.query.await('UPDATE nd_characters_outfits SET name = ? WHERE id = ? AND character_id = ?', {
         newName,
         outfitId,
         characterId
@@ -123,7 +123,7 @@ lib.callback.register("ND_AppearanceShops:updateOutfit", function(src, outfitId,
     local characterId = player.id
     local appearanceJson = json.encode(appearance)
     
-    local success = MySQL.query.await('UPDATE player_outfits SET appearance = ? WHERE id = ? AND character_id = ?', {
+    local success = MySQL.query.await('UPDATE nd_characters_outfits SET appearance = ? WHERE id = ? AND character_id = ?', {
         appearanceJson,
         outfitId,
         characterId

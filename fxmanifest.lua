@@ -1,5 +1,5 @@
 author "Andyyy#7666"
-description "Clothing store for ND framework"
+description "Clothing store for ND framework edited by CoreyJB247 for Database support"
 version "2.0.0"
 
 fx_version "cerulean"
